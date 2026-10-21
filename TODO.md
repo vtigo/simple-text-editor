@@ -12,7 +12,7 @@
 - [ ] Draw a triangle
 - [ ] Draw a rectangle
 - [ ] Draw multiple rectangles from a dynamic buffer (glDrawArraysInstanced)
-- [ ] Rasterize one glyph (FreeType?)
+- [ ] Rasterize one glyph (FreeType? stb_truetype?)
 - [ ] Figure out glyph atlas
 - [ ] Render a line of harcoded text
 
