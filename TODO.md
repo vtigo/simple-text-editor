@@ -1,14 +1,14 @@
 # Todo list
 
-## Platform window and loop
+## Platform setup
 - [ ] GLFW setup
 - [ ] Create window
 - [ ] Event loop
 - [ ] Handle close
-- [ ] Handle resise
+- [ ] Handle resize
+- [ ] Load OpenGL function pointers
 
 ## Rendering
-- [ ] Load OpenGL function pointers
 - [ ] Draw a triangle
 - [ ] Draw a rectangle
 - [ ] Draw multiple rectangles from a dynamic buffer (glDrawArraysInstanced)
