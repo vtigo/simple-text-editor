@@ -16,10 +16,9 @@
 - [] Figure out glyph atlas
 - [] Render a line of harcoded text
 
-## Data structures
+## Data and memory
 - [] Gap buffer
-
-## Memory management
+- [] Gliph cache
 - [] Arena api
 
 ### notes
