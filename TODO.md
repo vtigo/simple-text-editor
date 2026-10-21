@@ -1,25 +1,25 @@
 # Todo list
 
 ## Platform window and loop
-- [] GLFW setup
-- [] Create window
-- [] Event loop
-- [] Handle close
-- [] Handle resise
+- [ ] GLFW setup
+- [ ] Create window
+- [ ] Event loop
+- [ ] Handle close
+- [ ] Handle resise
 
 ## Rendering
-- [] Load OpenGL function pointers
-- [] Draw a triangle
-- [] Draw a rectangle
-- [] Draw multiple rectangles from a dynamic buffer (glDrawArraysInstanced)
-- [] Rasterize one glyph (FreeType?)
-- [] Figure out glyph atlas
-- [] Render a line of harcoded text
+- [ ] Load OpenGL function pointers
+- [ ] Draw a triangle
+- [ ] Draw a rectangle
+- [ ] Draw multiple rectangles from a dynamic buffer (glDrawArraysInstanced)
+- [ ] Rasterize one glyph (FreeType?)
+- [ ] Figure out glyph atlas
+- [ ] Render a line of harcoded text
 
 ## Data and memory
-- [] Gap buffer
-- [] Gliph cache
-- [] Arena api
+- [ ] Gap buffer
+- [ ] Gliph cache
+- [ ] Arena api
 
 ### notes
 enable vsync?
