@@ -8,7 +8,7 @@
 - [] Handle resise
 
 ## Rendering
-- [] Load OpenGL function pointer
+- [] Load OpenGL function pointers
 - [] Draw a triangle
 - [] Draw a rectangle
 - [] Draw multiple rectangles from a dynamic buffer (glDrawArraysInstanced)
@@ -16,5 +16,11 @@
 - [] Figure out glyph atlas
 - [] Render a line of harcoded text
 
-## Text data
+## Data structures
 - [] Gap buffer
+
+## Memory management
+- [] Arena api
+
+### notes
+enable vsync?
