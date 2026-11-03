@@ -12,7 +12,6 @@
 - [x] Vsync (glfwSwapInterval(1))
 
 ## Rendering
-- [x] Shader compile/link helper
 - [x] Draw a triangle
 - [ ] Draw a rectangle
 - [ ] Batch quads, one draw call
@@ -20,6 +19,10 @@
 - [ ] Rasterize one glyph (FreeType? stb_truetype?)
 - [ ] Glyph atlas + cache
 - [ ] Render a line of hardcoded text
+
+## Shader ergonomics
+- [x] Shader compile/link helper
+- [ ] Read shader sources from files
 
 ## Data and memory
 - [ ] Arena api
