@@ -7,6 +7,7 @@ if not "%OS%"=="Windows_NT" (
 )
 
 if "%GLFW_DIR%"=="" set "GLFW_DIR=C:\external\GLFW"
+if "%GLAD_DIR%"=="" set "GLAD_DIR=C:\external\glad"
 
 where cl >nul 2>nul
 if errorlevel 1 (
@@ -21,16 +22,17 @@ if errorlevel 1 (
 
 if not exist build mkdir build
 
-set "CFLAGS=/nologo /MD /Zi /W4 /I%GLFW_DIR%\include"
+set "CFLAGS=/nologo /MD /Zi /W4 /I%GLFW_DIR%\include /I%GLAD_DIR%\include"
 set "LFLAGS=/link /LIBPATH:%GLFW_DIR%\lib glfw3.lib opengl32.lib user32.lib gdi32.lib shell32.lib"
 
 set "ROOT=%CD:\=/%"
 set "INC=%GLFW_DIR:\=/%"
+set "GINC=%GLAD_DIR:\=/%"
 > compile_commands.json (
     echo [
     echo   {
     echo     "directory": "%ROOT%",
-    echo     "command": "cl /nologo /MD /Zi /W4 /I%INC%/include /c src/main.c /Fobuild/main.obj",
+    echo     "command": "cl /nologo /MD /Zi /W4 /I%INC%/include /I%GINC%/include /c src/main.c /Fobuild/main.obj",
     echo     "file": "src/main.c"
     echo   }
     echo ]
