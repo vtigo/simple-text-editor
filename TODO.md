@@ -22,7 +22,9 @@
 
 ## Shader ergonomics
 - [x] Shader compile/link helper
-- [ ] Read shader sources from files
+- [x] Read shader sources from files
+- [ ] Decide how to ship shaders in a single exe (no abs paths):
+    generate `build/shaders.h` from `src/shaders/*` at build time?
 
 ## Data and memory
 - [ ] Arena api

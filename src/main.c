@@ -1,25 +1,31 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <stdarg.h>
+
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 
 #define WINDOW_NAME   "simple text editor"
 #define WINDOW_WIDTH  800
 #define WINDOW_HEIGHT 600
 
+#define VS_SOURCE_FILEPATH "src/shaders/main.vert"
+#define FS_SOURCE_FILEPATH "src/shaders/main.frag"
+
 
 void callback_error(int error, const char *description);
 void callback_framebuffersize(GLFWwindow *window, int width, int heigth);
 
 void shutdown_fatal(const char *fmt, ...);
-void process_input(GLFWwindow *window);
-const char* get_vertex_shader_source(void);
-const char* get_fragment_shader_source(void);
+void input_process(GLFWwindow *window);
+
+const char* shader_source_read(const char *filepath);
 GLuint shader_compile(GLenum shader_type, const char *src);
 GLuint shader_program_link(GLuint vertex_shader, GLuint fragment_shader);
+// GLuint shader_program_build(const char *vs_src, const char *fs_src);
 
 
 int main(void)
@@ -31,8 +37,8 @@ int main(void)
     if (!glfwInit())
         shutdown_fatal("failed to initialize glfw");
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH,
@@ -61,12 +67,17 @@ int main(void)
 
     // compile shaders and link program
 
-    GLuint vertex_shader, fragment_shader, shader_program;
+    const char *vs_source = shader_source_read(VS_SOURCE_FILEPATH);
+    if (!vs_source)
+        shutdown_fatal("failed to read vertex shader source");
 
-    vertex_shader   = shader_compile(GL_VERTEX_SHADER, get_vertex_shader_source());
-    fragment_shader = shader_compile(GL_FRAGMENT_SHADER, get_fragment_shader_source());
+    const char *fs_source = shader_source_read(FS_SOURCE_FILEPATH);
+    if (!fs_source)
+        shutdown_fatal("failed to read fragment shader source");
 
-    shader_program  = shader_program_link(vertex_shader, fragment_shader);
+    GLuint vertex_shader   = shader_compile(GL_VERTEX_SHADER, vs_source);
+    GLuint fragment_shader = shader_compile(GL_FRAGMENT_SHADER, fs_source);
+    GLuint shader_program  = shader_program_link(vertex_shader, fragment_shader);
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
@@ -81,11 +92,11 @@ int main(void)
         0.0f,  0.5f, 0.0f  // superior central
     };
     
-    unsigned int vao;
+    unsigned int vao, vbo;
+
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    unsigned int vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -107,7 +118,7 @@ int main(void)
         // swap the buffers and react to events
         glfwSwapBuffers(window);
         glfwPollEvents();
-        process_input(window);
+        input_process(window);
     }
     
     // cleanup
@@ -120,19 +131,68 @@ int main(void)
     return 0;
 }
 
+const char* shader_source_read(const char *filepath)
+{
+    FILE *f = fopen(filepath, "rb");
+    if (!f) return NULL;
+
+    size_t cap = 4096, len = 0, n = 0, available;
+
+    char *buf = malloc(cap);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    };
+
+    for(;;) {
+        available = cap - len - 1; // - 1 for the terminator
+        n = fread(buf + len, 1, available, f);
+        len += n;
+
+        // short read
+        if (n < available) break;
+        
+        // buffer capacity wasnt enough
+        // double it and keep reading
+        
+        // max buffer size guard
+        if (cap > SIZE_MAX / 2) {
+            free(buf);
+            fclose(f);
+            return NULL;
+        }
+        
+        // double the capacity
+        char *tmp = realloc(buf, cap * 2);
+        if (!tmp) {
+            free(buf);
+            fclose(f);
+            return NULL;
+        }
+
+        buf = tmp;
+        cap *= 2;
+    }
+
+    if (ferror(f)) {
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
+
+    buf[len] = '\0';
+    return (const char *) buf;
+}
+
 
 GLuint shader_compile(GLenum shader_type, const char *src)
 {
-    int success;
-    char info_log[512];
-    GLuint shader;
-
-    shader = glCreateShader(shader_type);
-
+    GLuint shader = glCreateShader(shader_type);
     glShaderSource(shader, 1, &src, NULL);
-
     glCompileShader(shader);
 
+    int success;
+    char info_log[512];
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(shader, 512, NULL, info_log);
@@ -144,17 +204,13 @@ GLuint shader_compile(GLenum shader_type, const char *src)
 
 GLuint shader_program_link(GLuint vertex_shader, GLuint fragment_shader)
 {
-    int success;
-    char info_log[512];
-    GLuint shader_program;
-
-    shader_program = glCreateProgram();
-
+    GLuint shader_program = glCreateProgram();
     glAttachShader(shader_program, vertex_shader);
     glAttachShader(shader_program, fragment_shader);
-
     glLinkProgram(shader_program);
 
+    int success;
+    char info_log[512];
     glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
     if(!success) {
         glGetProgramInfoLog(shader_program, 512, NULL, info_log);
@@ -164,25 +220,8 @@ GLuint shader_program_link(GLuint vertex_shader, GLuint fragment_shader)
     return shader_program;
 }
 
-const char* get_vertex_shader_source(void)
-{
-    return "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
-}
+// GLuint shader_program_build(const char *vs_src, const char *fs_src);
 
-const char* get_fragment_shader_source(void)
-{
-    return "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-    "}\0";
-}
 
 // no cleanup on purpose: the OS reclaims the window, GL context and objects
 void shutdown_fatal(const char *fmt, ...)
@@ -196,7 +235,7 @@ void shutdown_fatal(const char *fmt, ...)
     exit(1);
 }
 
-void process_input(GLFWwindow *window)
+void input_process(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE))
         glfwSetWindowShouldClose(window, 1);
