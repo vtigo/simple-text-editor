@@ -15,6 +15,8 @@
 #define VS_SOURCE_FILEPATH "src/shaders/main.vert"
 #define FS_SOURCE_FILEPATH "src/shaders/main.frag"
 
+#define ERR_LOG_SIZE 512
+
 
 void callback_error(int error, const char *description);
 void callback_framebuffersize(GLFWwindow *window, int width, int heigth);
@@ -23,9 +25,9 @@ void shutdown_fatal(const char *fmt, ...);
 void input_process(GLFWwindow *window);
 
 const char* shader_source_read(const char *filepath);
-GLuint shader_compile(GLenum shader_type, const char *src);
-GLuint shader_program_link(GLuint vertex_shader, GLuint fragment_shader);
-// GLuint shader_program_build(const char *vs_src, const char *fs_src);
+GLuint shader_compile(GLenum shader_type, const char *src, char *err_log);
+GLuint shader_program_link(GLuint vertex_shader, GLuint fragment_shader, char *err_log);
+GLuint shader_program_build(const char *vs_src, const char *fs_src, char *err_log);
 
 
 int main(void)
@@ -74,13 +76,11 @@ int main(void)
     const char *fs_source = shader_source_read(FS_SOURCE_FILEPATH);
     if (!fs_source)
         shutdown_fatal("failed to read fragment shader source");
-
-    GLuint vertex_shader   = shader_compile(GL_VERTEX_SHADER, vs_source);
-    GLuint fragment_shader = shader_compile(GL_FRAGMENT_SHADER, fs_source);
-    GLuint shader_program  = shader_program_link(vertex_shader, fragment_shader);
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
+    
+    char err_log[ERR_LOG_SIZE] = "";
+    GLuint shader_program = shader_program_build(vs_source, fs_source, err_log);
+    if (!shader_program)
+        shutdown_fatal("failed to build shader program: %s", err_log);
 
 
     // load vertex data
@@ -131,97 +131,17 @@ int main(void)
     return 0;
 }
 
-const char* shader_source_read(const char *filepath)
+void callback_error(int error, const char *description)
 {
-    FILE *f = fopen(filepath, "rb");
-    if (!f) return NULL;
-
-    size_t cap = 4096, len = 0, n = 0, available;
-
-    char *buf = malloc(cap);
-    if (!buf) {
-        fclose(f);
-        return NULL;
-    };
-
-    for(;;) {
-        available = cap - len - 1; // - 1 for the terminator
-        n = fread(buf + len, 1, available, f);
-        len += n;
-
-        // short read
-        if (n < available) break;
-        
-        // buffer capacity wasnt enough
-        // double it and keep reading
-        
-        // max buffer size guard
-        if (cap > SIZE_MAX / 2) {
-            free(buf);
-            fclose(f);
-            return NULL;
-        }
-        
-        // double the capacity
-        char *tmp = realloc(buf, cap * 2);
-        if (!tmp) {
-            free(buf);
-            fclose(f);
-            return NULL;
-        }
-
-        buf = tmp;
-        cap *= 2;
-    }
-
-    if (ferror(f)) {
-        free(buf);
-        fclose(f);
-        return NULL;
-    }
-
-    buf[len] = '\0';
-    return (const char *) buf;
+    (void)error;
+    fprintf(stderr, "error: %s\n", description);
 }
 
-
-GLuint shader_compile(GLenum shader_type, const char *src)
+void callback_framebuffersize(GLFWwindow *window, int width, int heigth)
 {
-    GLuint shader = glCreateShader(shader_type);
-    glShaderSource(shader, 1, &src, NULL);
-    glCompileShader(shader);
-
-    int success;
-    char info_log[512];
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(shader, 512, NULL, info_log);
-        shutdown_fatal("failed to compile shader: %s", info_log);
-    }
-
-    return shader;
+    (void)window;
+    glViewport(0, 0, width, heigth);
 }
-
-GLuint shader_program_link(GLuint vertex_shader, GLuint fragment_shader)
-{
-    GLuint shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-
-    int success;
-    char info_log[512];
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
-    if(!success) {
-        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
-        shutdown_fatal("failed to link shader program: %s", info_log);
-    }
-    
-    return shader_program;
-}
-
-// GLuint shader_program_build(const char *vs_src, const char *fs_src);
-
 
 // no cleanup on purpose: the OS reclaims the window, GL context and objects
 void shutdown_fatal(const char *fmt, ...)
@@ -241,14 +161,100 @@ void input_process(GLFWwindow *window)
         glfwSetWindowShouldClose(window, 1);
 }
 
-void callback_error(int error, const char *description)
+GLuint
+shader_program_build(const char *vs_src,
+                     const char *fs_src,
+                     char *err_log)
 {
-    (void)error;
-    fprintf(stderr, "error: %s\n", description);
+    GLuint program = 0;
+
+    GLuint vs = shader_compile(GL_VERTEX_SHADER, vs_src, err_log);
+    if (!vs) return 0;
+
+    GLuint fs = shader_compile(GL_FRAGMENT_SHADER, fs_src, err_log);
+    if (fs) program = shader_program_link(vs, fs, err_log);
+
+    glDeleteShader(vs);
+    if (fs) glDeleteShader(fs);
+
+    return program;
 }
 
-void callback_framebuffersize(GLFWwindow *window, int width, int heigth)
+GLuint 
+shader_compile(GLenum shader_type,
+               const char *src,
+               char *err_log)
 {
-    (void)window;
-    glViewport(0, 0, width, heigth);
+    GLuint shader = glCreateShader(shader_type);
+    glShaderSource(shader, 1, &src, NULL);
+    glCompileShader(shader);
+
+    int success;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        if (err_log) glGetShaderInfoLog(shader, ERR_LOG_SIZE, NULL, err_log);
+        glDeleteShader(shader);
+        return 0;
+    }
+
+    return shader;
 }
+
+GLuint
+shader_program_link(GLuint vertex_shader,
+                    GLuint fragment_shader,
+                    char *err_log)
+{
+    GLuint shader_program = glCreateProgram();
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    glLinkProgram(shader_program);
+
+    int success;
+    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
+    if(!success) {
+        if (err_log)
+            glGetProgramInfoLog(shader_program, ERR_LOG_SIZE, NULL, err_log);
+        glDeleteProgram(shader_program);
+        return 0;
+    }
+    
+    return shader_program;
+}
+
+const char* shader_source_read(const char *filepath)
+{
+    FILE *f = fopen(filepath, "rb");
+    if (!f) return NULL;
+    char *buf = NULL;
+
+    if (fseek(f, 0, SEEK_END)) {
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
+
+    long size = ftell(f);
+    if (size < 0 || fseek(f, 0, SEEK_SET)){
+        free(buf);
+        fclose(f);
+        return NULL;
+    };
+
+    buf = malloc((size_t)size + 1); // + 1 for the terminator
+    if (!buf) {
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
+    if (fread(buf, 1, (size_t)size, f) != (size_t)size) {
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
+
+    buf[size] = '\0';
+    fclose(f);
+    return buf;
+}
+
